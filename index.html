@@ -3,258 +3,634 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NoteKeeper</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <title>slick notes · modern local storage</title>
+    <!-- Font Awesome 6 (free) for clean icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <!-- Google Font: Inter (modern, sleek) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .note-item.active { border-left-color: #3b82f6; background-color: #eff6ff; }
-        .dark .note-item.active { background-color: #1e3a8a; }
-        textarea:focus { outline: none; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(145deg, #f0f4fe 0%, #f8fafd 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+
+        /* main card – soft, light, with depth */
+        .app-container {
+            max-width: 1300px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+            border-radius: 2.5rem;
+            box-shadow: 0 20px 40px -10px rgba(0, 20, 40, 0.15), 0 2px 8px rgba(0,0,0,0.02);
+            padding: 2rem 2rem 2.5rem 2rem;
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+
+        /* header area */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header h1 {
+            font-weight: 600;
+            font-size: 2rem;
+            letter-spacing: -0.02em;
+            background: linear-gradient(135deg, #1A2E45, #2C4C6B);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .header h1 i {
+            background: #ffffffcc;
+            padding: 0.6rem;
+            border-radius: 1.2rem;
+            color: #2C4C6B;
+            font-size: 1.6rem;
+            box-shadow: 0 6px 12px -6px rgba(44,76,107,0.2);
+        }
+
+        .btn-new {
+            background: white;
+            border: none;
+            padding: 0.8rem 2rem 0.8rem 1.5rem;
+            border-radius: 3rem;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #1a3a4f;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            box-shadow: 0 8px 16px -10px #2c4c6b40, 0 0 0 1px rgba(255,255,255,0.7) inset;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid #ffffffd0;
+        }
+
+        .btn-new:hover {
+            background: #f1f7ff;
+            box-shadow: 0 12px 22px -12px #2c4c6b80;
+            transform: scale(1.02);
+            border-color: #b7d3f0;
+        }
+
+        .btn-new i {
+            font-size: 1.1rem;
+            color: #327a9e;
+        }
+
+        /* two column layout */
+        .notes-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 1.9fr;
+            gap: 2rem;
+        }
+
+        /* left panel – note list */
+        .notes-sidebar {
+            background: rgba(255,255,255,0.4);
+            border-radius: 2rem;
+            padding: 1.8rem 1.2rem 1.8rem 1.8rem;
+            backdrop-filter: blur(2px);
+            box-shadow: 0 6px 18px -8px rgba(0,32,64,0.08);
+            border: 1px solid rgba(255,255,255,0.8);
+            height: fit-content;
+            max-height: 70vh;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #b3c9e0 #eef4fc;
+        }
+
+        .notes-sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .notes-sidebar::-webkit-scrollbar-track {
+            background: #eef4fc;
+            border-radius: 10px;
+        }
+        .notes-sidebar::-webkit-scrollbar-thumb {
+            background: #b3c9e0;
+            border-radius: 10px;
+        }
+
+        .note-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            list-style: none;
+        }
+
+        .note-item {
+            background: white;
+            border-radius: 1.5rem;
+            padding: 0.9rem 1rem 0.9rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 10px -6px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.01);
+            transition: all 0.15s;
+            border: 1px solid #ffffff;
+            cursor: pointer;
+            backdrop-filter: blur(2px);
+        }
+
+        .note-item:hover {
+            background: #ffffffec;
+            border-color: #c3dafe;
+            box-shadow: 0 8px 18px -12px #204b6e30, 0 0 0 1px #acc9eb inset;
+            transform: translateY(-1px);
+        }
+
+        .note-item.selected {
+            background: #e2edff;
+            border-left: 6px solid #4d8bba;
+            border-radius: 1.5rem 1rem 1rem 1.5rem;
+            box-shadow: 0 6px 14px -8px #14375050;
+        }
+
+        .note-title {
+            font-weight: 500;
+            font-size: 1.1rem;
+            color: #193e57;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 140px;
+        }
+
+        .delete-note-btn {
+            background: transparent;
+            border: none;
+            color: #96adc7;
+            font-size: 1.2rem;
+            width: 2.2rem;
+            height: 2.2rem;
+            border-radius: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.15s;
+        }
+
+        .delete-note-btn:hover {
+            background: #ffe9e9;
+            color: #c23b3b;
+            transform: scale(1.1);
+        }
+
+        .empty-list-msg {
+            color: #768b9f;
+            text-align: center;
+            padding: 2rem 1rem;
+            font-style: italic;
+            background: #ffffffb0;
+            border-radius: 2rem;
+        }
+
+        /* right panel – editor */
+        .editor-panel {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(4px);
+            border-radius: 2.2rem;
+            padding: 2rem 2.2rem;
+            border: 1px solid rgba(255,255,255,0.9);
+            box-shadow: 0 15px 30px -18px #162b38;
+            transition: all 0.2s;
+        }
+
+        .editor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+            gap: 0.8rem;
+        }
+
+        .editor-header h2 {
+            font-weight: 500;
+            font-size: 1.3rem;
+            color: #1f4b68;
+            letter-spacing: -0.01em;
+            background: #f0f7ff;
+            padding: 0.4rem 1.2rem;
+            border-radius: 3rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.8rem;
+        }
+
+        .btn {
+            border: none;
+            background: white;
+            padding: 0.7rem 1.6rem;
+            border-radius: 2.5rem;
+            font-weight: 600;
+            font-size: 0.95rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            box-shadow: 0 4px 10px -8px #132830;
+            cursor: pointer;
+            transition: 0.1s ease;
+            border: 1px solid #dbe8f2;
+            color: #1d3f55;
+        }
+
+        .btn-primary {
+            background: #ffffff;
+            border: 1px solid #cbe0f0;
+            color: #1a4b6b;
+        }
+        .btn-primary:hover {
+            background: #e5f0ff;
+            border-color: #87b9e1;
+        }
+        .btn-delete {
+            background: #fff6f6;
+            border-color: #ffdad6;
+            color: #b13e3e;
+        }
+        .btn-delete:hover {
+            background: #ffe3e3;
+            border-color: #f3a1a1;
+        }
+        .btn:disabled {
+            opacity: 0.4;
+            pointer-events: none;
+            filter: grayscale(0.4);
+        }
+
+        .field {
+            margin-bottom: 2rem;
+        }
+
+        .field label {
+            display: block;
+            font-weight: 500;
+            font-size: 0.95rem;
+            color: #2f5570;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.2px;
+        }
+
+        .field input, .field textarea {
+            width: 100%;
+            padding: 1rem 1.3rem;
+            font-size: 1rem;
+            background: white;
+            border: 2px solid #e2ecf5;
+            border-radius: 1.8rem;
+            outline: none;
+            transition: 0.15s;
+            color: #1d384b;
+            font-weight: 450;
+            resize: vertical;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.01);
+        }
+
+        .field input:focus, .field textarea:focus {
+            border-color: #89b9dd;
+            box-shadow: 0 6px 14px -12px #1f4f78, 0 0 0 3px #d7eaff;
+        }
+
+        .field textarea {
+            min-height: 170px;
+            line-height: 1.6;
+        }
+
+        .placeholder-message {
+            color: #a1b5c9;
+            font-size: 1.1rem;
+            text-align: center;
+            padding: 3rem 1rem;
+            background: #ffffff90;
+            border-radius: 2.5rem;
+            border: 2px dashed #cddef0;
+        }
+
+        /* responsive */
+        @media (max-width: 800px) {
+            .notes-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+            .app-container {
+                padding: 1.5rem;
+            }
+        }
     </style>
 </head>
-<body class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
-    <div class="flex h-screen">
-        <!-- Sidebar -->
-        <aside class="w-64 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col">
-            <!-- Header -->
-            <div class="p-4 border-b border-slate-200 dark:border-slate-700">
-                <h1 class="text-xl font-semibold mb-3">NoteKeeper</h1>
-                <button id="newNoteBtn" class="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors">
-                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
-                    New Note
-                </button>
-            </div>
-            
-            <!-- Notes List -->
-            <div id="notesList" class="flex-1 overflow-y-auto p-2 space-y-1">
-                <!-- Notes will be rendered here -->
-            </div>
-        </aside>
-
-        <!-- Main Editor -->
-        <main class="flex-1 flex flex-col">
-            <!-- Editor Header -->
-            <div id="editorHeader" class="hidden border-b border-slate-200 dark:border-slate-700 p-4 flex justify-between items-center">
-                <div>
-                    <h2 id="noteTitle" class="text-lg font-medium"></h2>
-                    <p id="noteDate" class="text-sm text-slate-500 dark:text-slate-400"></p>
-                </div>
-                <button id="deleteNoteBtn" class="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-colors">
-                    <i data-lucide="trash-2" class="w-5 h-5"></i>
-                </button>
-            </div>
-
-            <!-- Editor Content -->
-            <div class="flex-1 flex flex-col">
-                <!-- Empty State -->
-                <div id="emptyState" class="flex-1 flex items-center justify-center text-slate-400">
-                    <div class="text-center">
-                        <i data-lucide="file-text" class="w-16 h-16 mx-auto mb-4 opacity-50"></i>
-                        <p class="text-lg">No notes yet</p>
-                        <p class="text-sm">Click "New Note" to get started</p>
-                    </div>
-                </div>
-
-                <!-- Textarea -->
-                <textarea id="noteContent" class="hidden flex-1 p-6 resize-none bg-transparent text-base leading-relaxed" placeholder="Start typing your note..."></textarea>
-            </div>
-        </main>
+<body>
+<div class="app-container">
+    <!-- header with brand & new button -->
+    <div class="header">
+        <h1>
+            <i class="fa-regular fa-note-sticky"></i> 
+            slick notes
+        </h1>
+        <button class="btn-new" id="newNoteBtn">
+            <i class="fa-regular fa-plus"></i> new note
+        </button>
     </div>
 
-    <!-- Delete Confirmation Modal -->
-    <div id="deleteModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div class="bg-white dark:bg-slate-800 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
-            <h3 class="text-lg font-semibold mb-2">Delete Note?</h3>
-            <p class="text-slate-600 dark:text-slate-400 mb-6">This action cannot be undone. The note will be permanently deleted.</p>
-            <div class="flex gap-3 justify-end">
-                <button id="cancelDeleteBtn" class="px-4 py-2 rounded-lg border border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                    Cancel
-                </button>
-                <button id="confirmDeleteBtn" class="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white transition-colors">
-                    Delete
-                </button>
+    <!-- main grid: left list / right editor -->
+    <div class="notes-grid">
+        <!-- left sidebar with list of notes -->
+        <div class="notes-sidebar">
+            <div id="noteListContainer" class="note-list">
+                <!-- dynamically injected via js -->
+            </div>
+        </div>
+
+        <!-- right editor panel -->
+        <div class="editor-panel">
+            <div class="editor-header">
+                <h2><i class="fa-regular fa-pen-to-square" style="font-size: 1rem;"></i> edit note</h2>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="saveNoteBtn" disabled>
+                        <i class="fa-regular fa-floppy-disk"></i> save
+                    </button>
+                    <button class="btn btn-delete" id="deleteNoteBtn" disabled>
+                        <i class="fa-regular fa-trash-can"></i> delete
+                    </button>
+                </div>
+            </div>
+
+            <!-- editor fields -->
+            <div class="field">
+                <label for="noteTitleInput"><i class="fa-regular fa-heading"></i> title (editable)</label>
+                <input type="text" id="noteTitleInput" placeholder="Note title..." disabled>
+            </div>
+            <div class="field">
+                <label for="noteContentInput"><i class="fa-regular fa-align-left"></i> content (optional)</label>
+                <textarea id="noteContentInput" placeholder="Write your note here..." disabled></textarea>
+            </div>
+            <!-- subtle hint -->
+            <div style="color:#95adc4; font-size:0.85rem; margin-top: 1rem; text-align: right; opacity:0.8;">
+                <i class="fa-regular fa-circle-check"></i> changes saved only when you click "save"
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        // Initialize Lucide icons
-        lucide.createIcons();
-
-        // State
+<script>
+    (function() {
+        // -------- data & state ----------
+        const STORAGE_KEY = 'slick_notes_app';
         let notes = [];
-        let currentNoteId = null;
-        let saveTimeout = null;
+        let selectedNoteId = null;   // null when no note selected
 
-        // DOM Elements
-        const notesList = document.getElementById('notesList');
+        // -------- DOM elements ----------
+        const noteListDiv = document.getElementById('noteListContainer');
         const newNoteBtn = document.getElementById('newNoteBtn');
-        const editorHeader = document.getElementById('editorHeader');
-        const noteTitle = document.getElementById('noteTitle');
-        const noteDate = document.getElementById('noteDate');
+        const saveNoteBtn = document.getElementById('saveNoteBtn');
         const deleteNoteBtn = document.getElementById('deleteNoteBtn');
-        const emptyState = document.getElementById('emptyState');
-        const noteContent = document.getElementById('noteContent');
-        const deleteModal = document.getElementById('deleteModal');
-        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
-        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const titleInput = document.getElementById('noteTitleInput');
+        const contentTextarea = document.getElementById('noteContentInput');
 
-        // Storage functions
-        function getNotes() {
-            const stored = localStorage.getItem('notekeeper_notes');
-            return stored ? JSON.parse(stored) : [];
+        // -------- helpers -------------
+        function loadNotesFromStorage() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                try {
+                    notes = JSON.parse(stored);
+                } catch (e) {
+                    notes = [];
+                }
+            } else {
+                // fresh start with sample notes (modern, friendly)
+                notes = [
+                    { id: '1', title: 'welcome 🌱', content: 'edit or delete me – titles are editable.' },
+                    { id: '2', title: 'design ideas', content: 'soft glassmorphism, light background, pastel blues.' },
+                    { id: '3', title: 'groceries', content: 'avocado, oat milk, blueberries' },
+                ];
+            }
+            // ensure every note has an id (string)
+            notes = notes.map(n => ({ ...n, id: String(n.id) }));
         }
 
-        function saveNotes(notesToSave) {
-            localStorage.setItem('notekeeper_notes', JSON.stringify(notesToSave));
+        function saveNotesToStorage() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
         }
 
-        function formatDate(timestamp) {
-            const date = new Date(timestamp);
-            const now = new Date();
-            const diff = now - date;
-            
-            if (diff < 60000) return 'Just now';
-            if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
-            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-            if (diff < 604800000) return `${Math.floor(diff / 86400000)}d ago`;
-            
-            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        }
-
-        function extractTitle(content) {
-            const firstLine = content.split('\n')[0].trim();
-            return firstLine || 'Untitled';
-        }
-
-        // Render functions
-        function renderNotesList() {
-            notesList.innerHTML = '';
-            
-            if (notes.length === 0) {
-                notesList.innerHTML = '<p class="text-sm text-slate-400 text-center py-8">No notes yet</p>';
+        // render the list of notes (left panel)
+        function renderNoteList() {
+            if (!notes.length) {
+                noteListDiv.innerHTML = `<div class="empty-list-msg"><i class="fa-regular fa-face-smile"></i> no notes yet — click "new note"</div>`;
                 return;
             }
 
+            let html = '';
             notes.forEach(note => {
-                const div = document.createElement('div');
-                div.className = `note-item p-3 rounded-lg cursor-pointer border-l-4 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors ${note.id === currentNoteId ? 'active' : ''}`;
-                div.innerHTML = `
-                    <h3 class="font-medium text-sm truncate">${note.title}</h3>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">${formatDate(note.updatedAt)}</p>
+                const isSelected = (selectedNoteId === note.id) ? 'selected' : '';
+                // Truncate long titles
+                const displayTitle = note.title.length > 25 ? note.title.slice(0, 22) + '…' : note.title;
+                html += `
+                    <div class="note-item ${isSelected}" data-id="${note.id}">
+                        <span class="note-title">${escapeHtml(displayTitle) || 'untitled'}</span>
+                        <button class="delete-note-btn" data-id="${note.id}" aria-label="delete note">
+                            <i class="fa-regular fa-trash-can"></i>
+                        </button>
+                    </div>
                 `;
-                div.addEventListener('click', () => selectNote(note.id));
-                notesList.appendChild(div);
             });
+            noteListDiv.innerHTML = html;
         }
 
+        // simple escape for innerHTML safety (prevent XSS from titles)
+        function escapeHtml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // populate editor with selected note, enable/disable fields
         function renderEditor() {
-            const note = notes.find(n => n.id === currentNoteId);
-            
-            if (!note) {
-                editorHeader.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-                noteContent.classList.add('hidden');
-                return;
+            const note = notes.find(n => n.id === selectedNoteId);
+            if (note) {
+                titleInput.value = note.title || '';
+                contentTextarea.value = note.content || '';
+                titleInput.disabled = false;
+                contentTextarea.disabled = false;
+                saveNoteBtn.disabled = false;
+                deleteNoteBtn.disabled = false;
+            } else {
+                titleInput.value = '';
+                contentTextarea.value = '';
+                titleInput.disabled = true;
+                contentTextarea.disabled = true;
+                saveNoteBtn.disabled = true;
+                deleteNoteBtn.disabled = true;
             }
-
-            editorHeader.classList.remove('hidden');
-            emptyState.classList.add('hidden');
-            noteContent.classList.remove('hidden');
-            
-            noteTitle.textContent = note.title;
-            noteDate.textContent = `Last edited ${formatDate(note.updatedAt)}`;
-            noteContent.value = note.content;
         }
 
-        // Actions
-        function createNote() {
-            const newNote = {
-                id: Date.now().toString(),
-                title: 'Untitled',
-                content: '',
-                updatedAt: Date.now()
-            };
-            
-            notes.unshift(newNote);
-            saveNotes(notes);
-            selectNote(newNote.id);
-            noteContent.focus();
-        }
-
-        function selectNote(id) {
-            currentNoteId = id;
-            renderNotesList();
+        // full UI refresh (list + editor) based on current state
+        function refreshUI() {
+            renderNoteList();
             renderEditor();
         }
 
-        function updateNote(content) {
-            const noteIndex = notes.findIndex(n => n.id === currentNoteId);
+        // set selected note and update everything
+        function setSelectedNote(id) {
+            selectedNoteId = id;
+            refreshUI();
+        }
+
+        // -------- core actions ----------
+        function createNewNote() {
+            const newId = Date.now() + '-' + Math.random().toString(36).substring(2, 8);
+            const newNote = {
+                id: newId,
+                title: 'new note',
+                content: '',
+            };
+            notes.push(newNote);
+            saveNotesToStorage();
+            setSelectedNote(newId);
+            // focus title input after render (short timeout)
+            setTimeout(() => titleInput.focus(), 50);
+        }
+
+        function saveCurrentNote() {
+            if (!selectedNoteId) return;
+            const noteIndex = notes.findIndex(n => n.id === selectedNoteId);
             if (noteIndex === -1) return;
 
-            const title = extractTitle(content);
-            notes[noteIndex] = {
-                ...notes[noteIndex],
-                title,
-                content,
-                updatedAt: Date.now()
-            };
-            
-            saveNotes(notes);
-            renderNotesList();
-            noteTitle.textContent = title;
-            noteDate.textContent = `Last edited ${formatDate(notes[noteIndex].updatedAt)}`;
+            // update title & content from inputs
+            notes[noteIndex].title = titleInput.value.trim() || 'untitled';   // fallback if empty
+            notes[noteIndex].content = contentTextarea.value;
+
+            saveNotesToStorage();
+            // re-render list (title might have changed) and keep same selected id
+            renderNoteList();
+            // editor remains the same (but we keep values as they are, already synced)
+            // but we re-select the same note to keep selection highlight
+            renderEditor(); // optional but consistent
         }
 
-        function showDeleteModal() {
-            deleteModal.classList.remove('hidden');
+        function deleteNoteById(noteId) {
+            const index = notes.findIndex(n => n.id === noteId);
+            if (index === -1) return;
+
+            notes.splice(index, 1);
+            saveNotesToStorage();
+
+            // if deleted note was selected, select another note (first available)
+            if (selectedNoteId === noteId) {
+                if (notes.length > 0) {
+                    selectedNoteId = notes[0].id;
+                } else {
+                    selectedNoteId = null;
+                }
+            }
+            refreshUI();
         }
 
-        function hideDeleteModal() {
-            deleteModal.classList.add('hidden');
-        }
+        // -------- event handlers ----------
+        // click on note list (delegation)
+        noteListDiv.addEventListener('click', (e) => {
+            // check if delete button was clicked (or icon inside it)
+            const deleteBtn = e.target.closest('.delete-note-btn');
+            if (deleteBtn) {
+                e.stopPropagation();  // avoid selecting the note
+                const id = deleteBtn.getAttribute('data-id');
+                if (id) deleteNoteById(id);
+                return;
+            }
 
-        function deleteNote() {
-            notes = notes.filter(n => n.id !== currentNoteId);
-            saveNotes(notes);
-            currentNoteId = null;
-            hideDeleteModal();
-            renderNotesList();
-            renderEditor();
-        }
-
-        // Event Listeners
-        newNoteBtn.addEventListener('click', createNote);
-        deleteNoteBtn.addEventListener('click', showDeleteModal);
-        cancelDeleteBtn.addEventListener('click', hideDeleteModal);
-        confirmDeleteBtn.addEventListener('click', deleteNote);
-
-        noteContent.addEventListener('input', (e) => {
-            clearTimeout(saveTimeout);
-            saveTimeout = setTimeout(() => {
-                updateNote(e.target.value);
-            }, 500);
+            // otherwise, find the note-item container
+            const noteItem = e.target.closest('.note-item');
+            if (noteItem) {
+                const id = noteItem.getAttribute('data-id');
+                if (id) {
+                    setSelectedNote(id);
+                }
+            }
         });
 
-        // Dark mode toggle (optional)
-        function toggleDarkMode() {
-            document.documentElement.classList.toggle('dark');
-            localStorage.setItem('notekeeper_theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
-        }
+        // new note button
+        newNoteBtn.addEventListener('click', () => {
+            createNewNote();
+        });
 
-        // Initialize
-        notes = getNotes().sort((a, b) => b.updatedAt - a.updatedAt);
-        
-        // Load theme preference
-        if (localStorage.getItem('notekeeper_theme') === 'dark' || 
-            (!localStorage.getItem('notekeeper_theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.documentElement.classList.add('dark');
-        }
+        // save button click
+        saveNoteBtn.addEventListener('click', () => {
+            saveCurrentNote();
+        });
 
-        renderNotesList();
-        renderEditor();
-    </script>
+        // delete button in editor
+        deleteNoteBtn.addEventListener('click', () => {
+            if (selectedNoteId) {
+                deleteNoteById(selectedNoteId);
+            }
+        });
+
+        // optional: allow ctrl+enter to save
+        contentTextarea.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                saveCurrentNote();
+            }
+        });
+        titleInput.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                saveCurrentNote();
+            }
+        });
+
+        // -------- initialization ----------
+        loadNotesFromStorage();
+        // ensure note ids are strings (just in case)
+        notes = notes.map(n => ({ ...n, id: String(n.id) }));
+        // set default selected note (first if exists)
+        if (notes.length > 0 && !selectedNoteId) {
+            selectedNoteId = notes[0].id;
+        } else if (notes.length === 0) {
+            selectedNoteId = null;
+        }
+        refreshUI();
+
+        // extra: if list is empty, editor remains disabled (good)
+        // double-check that selected note still exists
+        if (selectedNoteId && !notes.find(n => n.id === selectedNoteId)) {
+            selectedNoteId = notes.length ? notes[0].id : null;
+            refreshUI();
+        }
+    })();
+</script>
 </body>
 </html>
