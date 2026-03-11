@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteKeeper Cloud</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .note-item.active { border-left-color: #3b82f6; background-color: #eff6ff; }
+        .dark .note-item.active { background-color: #1e3a8a; }
+        textarea:focus { outline: none; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+    </style>
+</head>
+<body class="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 overflow-hidden">
+    <div class="flex h-screen w-full">
+        <!-- Sidebar -->
+        <aside class="w-72 bg-slate-50 dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 flex flex-col shrink-0">
+            <!-- Header -->
+            <div class="p-4 border-b border-slate-200 dark:border-slate-700">
+                <div class="flex items-center justify-between mb-4">
+                    <h1 class="text-xl font-bold tracking-tight">NoteKeeper</h1>
+                    <div id="syncStatus" class="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-slate-400">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+                        Connecting
+                    </div>
+                </div>
+                <button id="newNoteBtn" disabled class="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 transition-all shadow-sm font-medium">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    New Note
+                </button>
+            </div>
+            
+            <!-- Notes List -->
+            <div id="notesList" class="flex-1 overflow-y-auto p-3 space-y-1">
+                <div class="flex flex-col items-center justify-center h-full text-slate-400 opacity-60">
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mb-2"></div>
+                    <p class="text-xs">Loading notes...</p>
+                </div>
+            </div>
+
+            <!-- User Footer -->
+            <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-100/50 dark:bg-slate-900/30">
+                <p class="text-[10px] text-slate-500 uppercase font-bold mb-1">Your Cloud ID</p>
+                <p id="userIdDisplay" class="text-[11px] font-mono text-slate-400 truncate">Initializing...</p>
+            </div>
+        </aside>
+
+        <!-- Main Editor -->
+        <main class="flex-1 flex flex-col relative">
+            <!-- Editor Header -->
+            <div id="editorHeader" class="invisible border-b border-slate-200 dark:border-slate-700 p-4 flex justify-between items-center bg-white/80 dark:bg-slate-900/80 backdrop-blur-md sticky top-0 z-10">
+                <div class="flex-1 min-w-0 mr-4">
+                    <h2 id="noteTitle" class="text-lg font-semibold truncate">Untitled Note</h2>
+                    <p id="noteDate" class="text-xs text-slate-500 dark:text-slate-400">Not saved yet</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="deleteNoteBtn" class="text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-2 rounded-lg transition-all" title="Delete note">
+                        <i data-lucide="trash-2" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Editor Content -->
+            <div class="flex-1 flex flex-col relative overflow-hidden">
+                <!-- Empty State -->
+                <div id="emptyState" class="absolute inset-0 flex items-center justify-center text-slate-400 bg-white dark:bg-slate-900 z-0">
+                    <div class="text-center p-8">
+                        <div class="bg-slate-50 dark:bg-slate-800 w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <i data-lucide="file-text" class="w-10 h-10 opacity-40"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-slate-600 dark:text-slate-300">Ready for a new note?</h3>
+                        <p class="text-sm max-w-xs mx-auto mt-2">All your thoughts are synced to your private cloud storage automatically.</p>
+                    </div>
+                </div>
+
+                <!-- Textarea -->
+                <textarea id="noteContent" class="invisible flex-1 p-8 md:p-12 resize-none bg-transparent text-lg leading-relaxed focus:ring-0 z-10" placeholder="Start your masterpiece here..."></textarea>
+            </div>
+        </main>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl scale-up-animation">
+            <div class="w-12 h-12 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full flex items-center justify-center mb-4">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2">Delete this note?</h3>
+            <p class="text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">This will remove the note from your cloud storage forever. This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button id="cancelDeleteBtn" class="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+                    Keep it
+                </button>
+                <button id="confirmDeleteBtn" class="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white font-medium transition-colors">
+                    Delete Note
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Firebase Configuration
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'notekeeper-cloud';
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // State
+        let notes = [];
+        let currentNoteId = null;
+        let saveTimeout = null;
+        let currentUser = null;
+
+        // DOM Elements
+        const notesList = document.getElementById('notesList');
+        const newNoteBtn = document.getElementById('newNoteBtn');
+        const editorHeader = document.getElementById('editorHeader');
+        const noteTitle = document.getElementById('noteTitle');
+        const noteDate = document.getElementById('noteDate');
+        const deleteNoteBtn = document.getElementById('deleteNoteBtn');
+        const emptyState = document.getElementById('emptyState');
+        const noteContent = document.getElementById('noteContent');
+        const deleteModal = document.getElementById('deleteModal');
+        const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const syncStatus = document.getElementById('syncStatus');
+        const userIdDisplay = document.getElementById('userIdDisplay');
+
+        // Helpers
+        function setSyncing(isSyncing) {
+            if (isSyncing) {
+                syncStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span> Syncing`;
+            } else {
+                syncStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> Synced`;
+            }
+        }
+
+        function formatDate(timestamp) {
+            if (!timestamp) return 'Just now';
+            const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+
+        function extractTitle(content) {
+            const firstLine = content.split('\n')[0].trim();
+            return firstLine.substring(0, 40) || 'Untitled Note';
+        }
+
+        // Firestore Operations
+        const getNotesPath = () => collection(db, 'artifacts', appId, 'users', currentUser.uid, 'notes');
+        const getNoteDoc = (id) => doc(db, 'artifacts', appId, 'users', currentUser.uid, 'notes', id);
+
+        async function createNote() {
+            if (!currentUser) return;
+            const newId = Date.now().toString();
+            const noteData = {
+                id: newId,
+                title: 'New Note',
+                content: '',
+                updatedAt: serverTimestamp()
+            };
+            
+            try {
+                setSyncing(true);
+                await setDoc(getNoteDoc(newId), noteData);
+                selectNote(newId);
+                setTimeout(() => noteContent.focus(), 100);
+            } catch (error) {
+                console.error("Error creating note:", error);
+            }
+        }
+
+        async function updateNote(content) {
+            if (!currentUser || !currentNoteId) return;
+            
+            const title = extractTitle(content);
+            try {
+                setSyncing(true);
+                await setDoc(getNoteDoc(currentNoteId), {
+                    content,
+                    title,
+                    updatedAt: serverTimestamp()
+                }, { merge: true });
+            } catch (error) {
+                console.error("Error updating note:", error);
+            } finally {
+                setSyncing(false);
+            }
+        }
+
+        async function deleteNote() {
+            if (!currentUser || !currentNoteId) return;
+            try {
+                setSyncing(true);
+                const idToDelete = currentNoteId;
+                currentNoteId = null;
+                hideDeleteModal();
+                renderEditor();
+                await deleteDoc(getNoteDoc(idToDelete));
+            } catch (error) {
+                console.error("Error deleting note:", error);
+            }
+        }
+
+        // UI Logic
+        function selectNote(id) {
+            currentNoteId = id;
+            renderNotesList();
+            renderEditor();
+        }
+
+        function renderNotesList() {
+            notesList.innerHTML = '';
+            
+            if (notes.length === 0) {
+                notesList.innerHTML = `
+                    <div class="text-center py-12 opacity-50">
+                        <i data-lucide="inbox" class="w-8 h-8 mx-auto mb-2"></i>
+                        <p class="text-xs font-medium">No notes found</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            notes.forEach(note => {
+                const div = document.createElement('div');
+                div.className = `note-item p-4 rounded-xl cursor-pointer border-l-4 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all mb-1 ${note.id === currentNoteId ? 'active shadow-sm' : ''}`;
+                div.innerHTML = `
+                    <h3 class="font-semibold text-sm truncate ${note.id === currentNoteId ? 'text-blue-600 dark:text-blue-400' : ''}">${note.title || 'Untitled'}</h3>
+                    <div class="flex items-center gap-2 mt-1">
+                        <p class="text-[10px] text-slate-400 font-medium">${formatDate(note.updatedAt)}</p>
+                    </div>
+                `;
+                div.onclick = () => selectNote(note.id);
+                notesList.appendChild(div);
+            });
+        }
+
+        function renderEditor() {
+            const note = notes.find(n => n.id === currentNoteId);
+            
+            if (!note) {
+                editorHeader.classList.add('invisible');
+                emptyState.classList.remove('invisible');
+                noteContent.classList.add('invisible');
+                return;
+            }
+
+            editorHeader.classList.remove('invisible');
+            emptyState.classList.add('invisible');
+            noteContent.classList.remove('invisible');
+            
+            noteTitle.textContent = note.title;
+            noteDate.textContent = `Last synced ${formatDate(note.updatedAt)}`;
+            // Only update textarea if it's not the active focus to prevent cursor jumps
+            if (document.activeElement !== noteContent) {
+                noteContent.value = note.content || '';
+            }
+        }
+
+        function showDeleteModal() { deleteModal.classList.remove('hidden'); }
+        function hideDeleteModal() { deleteModal.classList.add('hidden'); }
+
+        // Event Listeners
+        newNoteBtn.onclick = createNote;
+        deleteNoteBtn.onclick = showDeleteModal;
+        cancelDeleteBtn.onclick = hideDeleteModal;
+        confirmDeleteBtn.onclick = deleteNote;
+
+        noteContent.oninput = (e) => {
+            clearTimeout(saveTimeout);
+            setSyncing(true);
+            saveTimeout = setTimeout(() => {
+                updateNote(e.target.value);
+            }, 800);
+        };
+
+        // Initialization
+        const init = async () => {
+            lucide.createIcons();
+
+            // 1. Auth First
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth failed:", err);
+                syncStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Auth Error`;
+                return;
+            }
+
+            // 2. Auth Listener
+            onAuthStateChanged(auth, (user) => {
+                currentUser = user;
+                if (user) {
+                    userIdDisplay.textContent = user.uid;
+                    newNoteBtn.disabled = false;
+                    
+                    // 3. Data Sync
+                    const q = query(getNotesPath());
+                    onSnapshot(q, (snapshot) => {
+                        notes = snapshot.docs
+                            .map(doc => ({ ...doc.data(), id: doc.id }))
+                            .sort((a, b) => {
+                                const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : (a.updatedAt || 0);
+                                const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : (b.updatedAt || 0);
+                                return timeB - timeA;
+                            });
+                        
+                        renderNotesList();
+                        renderEditor();
+                        setSyncing(false);
+                    }, (err) => {
+                        console.error("Firestore sync error:", err);
+                        syncStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500"></span> Offline`;
+                    });
+                }
+            });
+        };
+
+        init();
+    </script>
+</body>
+</html>
